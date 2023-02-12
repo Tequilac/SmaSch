@@ -1,2 +1,5 @@
+from src.validator import Validator
+
 if __name__ == 'main':
-    print('Starting')
+    validator = Validator()
+    validator.start_loop()

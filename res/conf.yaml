@@ -1,0 +1,21 @@
+---
+check_timeout: 10
+thresholds:
+  free_memory:
+    medium: 40
+    high: 80
+  free_cpu:
+    medium: 40
+    high: 80
+  temperature:
+    medium: 30
+    high: 60
+rules:
+  - conditions:
+      - attribute: free_memory
+        value: high
+      - attribute: free_cpu
+        value: high
+      - attribute: temperature
+        value: high
+    action: delete_pods
