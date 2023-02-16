@@ -3,6 +3,7 @@ import time
 
 import yaml
 from kubernetes import config, client
+from prometheus_api_client import PrometheusConnect
 
 from logger import logger
 from src.types import Config, MetricThresholds, Thresholds, Condition, Metric, ThresholdValue, Action, Rule
@@ -52,6 +53,7 @@ class Validator:
         self._kube_api = client.CoreV1Api()
 
     def start_loop(self):
+        logger.info('Starting')
         changes = self.get_file_changes()
         if changes:
             self._check_timeout = changes.check_timeout
@@ -63,13 +65,13 @@ class Validator:
     def get_file_changes(self) -> Config | None:
         modified_time = os.stat(self._file_path).st_mtime
         if modified_time != self._file_stamp:
-            logger.warn(f'Detected changes, reloading configuration')
+            logger.warn('Detected changes, reloading configuration')
             self._file_stamp = modified_time
             conf = self.load_from_file()
             try:
                 return conf_to_obj(conf)
             except KeyError:
-                logger.warn(f'Invalid configuration, keeping last one')
+                logger.warn('Invalid configuration, keeping last one')
                 return None
         return None
 
@@ -85,7 +87,7 @@ class Validator:
             allocatable = node.status.allocatable
             capacity = node.status.capacity
 
-            free_cpu = int(capacity['cpu'])*1000 - int(allocatable['cpu'].split('m')[0])
+            free_cpu = int(capacity['cpu']) * 1000 - int(allocatable['cpu'].split('m')[0])
             free_memory = int(capacity['memory'].split('Ki')[0]) - int(allocatable['memory'].split('Ki')[0])
 
             if free_memory < self._thresholds.free_memory.medium:
@@ -102,4 +104,22 @@ class Validator:
             elif free_cpu >= self._thresholds.free_cpu.high:
                 labels['sma-cpu'] = 'sma-cpu-high'
 
-            # TODO temperature from prometheus
+            prometheus_url = os.getenv('PROM_URL')
+            prom = PrometheusConnect(url=prometheus_url, disable_ssl=True)
+            label_config = {'instance': node.metadata.name}
+            metric = prom.get_current_metric_value(metric_name='node_hwmon_temp_celsius', label_config=label_config)
+            temperature = metric[0].value
+
+            if temperature < self._thresholds.temperature.medium:
+                labels['sma-temp'] = 'sma-temp-low'
+            elif self._thresholds.temperature.medium <= temperature < self._thresholds.temperature.high:
+                labels['sma-temp'] = 'sma-temp-mid'
+            elif temperature >= self._thresholds.temperature.high:
+                labels['sma-temp'] = 'sma-temp-high'
+
+            body = {
+                'metadata': {
+                    'labels': labels
+                }
+            }
+            self._kube_api.patch_node(name=node.metadata.name, body=body)

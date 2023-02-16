@@ -1,2 +1,3 @@
 PyYAML
 kubernetes
+prometheus-api-client
