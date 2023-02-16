@@ -45,7 +45,7 @@ class Validator:
         self._file_stamp = 0
         self._file_path = '/res/config/conf.yaml'
         self._check_timeout = 10
-        self._thresholds: MetricThresholds = None
+        self._thresholds: MetricThresholds | None = None
         self._rules: list[Rule] = []
 
         config.load_kube_config()
@@ -54,13 +54,14 @@ class Validator:
 
     def start_loop(self):
         logger.info('Starting')
-        changes = self.get_file_changes()
-        if changes:
-            self._check_timeout = changes.check_timeout
-            self._thresholds = changes.thresholds
-            self._rules = changes.rules
-        self.validate()
-        time.sleep(self._check_timeout)
+        while True:
+            changes = self.get_file_changes()
+            if changes:
+                self._check_timeout = changes.check_timeout
+                self._thresholds = changes.thresholds
+                self._rules = changes.rules
+            self.validate()
+            time.sleep(self._check_timeout)
 
     def get_file_changes(self) -> Config | None:
         modified_time = os.stat(self._file_path).st_mtime
