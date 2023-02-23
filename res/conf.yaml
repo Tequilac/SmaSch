@@ -13,9 +13,9 @@ thresholds:
 rules:
   - conditions:
       - attribute: free_memory
-        value: high
+        value: low
       - attribute: free_cpu
-        value: high
+        value: low
       - attribute: temperature
         value: high
     action: delete_pods

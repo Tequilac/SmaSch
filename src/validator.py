@@ -47,6 +47,7 @@ class Validator:
         self._check_timeout = 10
         self._thresholds: MetricThresholds | None = None
         self._rules: list[Rule] = []
+        self._labels = []
 
         config.load_kube_config()
 
@@ -61,6 +62,7 @@ class Validator:
                 self._thresholds = changes.thresholds
                 self._rules = changes.rules
             self.validate()
+            self.evaluate_rules()
             time.sleep(self._check_timeout)
 
     def get_file_changes(self) -> Config | None:
@@ -118,9 +120,20 @@ class Validator:
             elif temperature >= self._thresholds.temperature.high:
                 labels['sma-temp'] = 'sma-temp-high'
 
+            self._labels = labels
+
             body = {
                 'metadata': {
                     'labels': labels
                 }
             }
             self._kube_api.patch_node(name=node.metadata.name, body=body)
+
+    def evaluate_rules(self):
+        nodes = self._kube_api.list_node(watch=False).items
+        for node in nodes:
+            for rule in self._rules:
+                results = [self.evaluate_condition(node, cond) for cond in rule.conditions]
+
+    def evaluate_condition(self, node, condition: Condition):
+        return True
