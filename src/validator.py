@@ -47,7 +47,7 @@ class Validator:
         self._check_timeout = 10
         self._thresholds: MetricThresholds | None = None
         self._rules: list[Rule] = []
-        self._labels = []
+        self._labels = {}
 
         config.load_kube_config()
 
@@ -120,7 +120,7 @@ class Validator:
             elif temperature >= self._thresholds.temperature.high:
                 labels['sma-temp'] = 'sma-temp-high'
 
-            self._labels = labels
+            self._labels[node.metadata.name] = labels
 
             body = {
                 'metadata': {
@@ -134,6 +134,30 @@ class Validator:
         for node in nodes:
             for rule in self._rules:
                 results = [self.evaluate_condition(node, cond) for cond in rule.conditions]
+                if all(results):
+                    self.perform_action(node, rule.action)
+
+    def perform_action(self, node, action: Action):
+        if action == Action.DELETE_PODS:
+            pods = self._kube_api.list_namespaced_pod(namespace='default').items
+            for pod in pods:
+                if pod.spec.node_name == node.metadata.name:
+                    self._kube_api.delete_namespaced_pod(pod.metadata.name, namespace='default')
 
     def evaluate_condition(self, node, condition: Condition):
-        return True
+        labels = self._labels[node.metadata.name]
+        if condition.attribute == Metric.FREE_MEMORY:
+            if condition.value == ThresholdValue.MEDIUM:
+                return labels['sma-mem'] == 'sma-mem-low'
+            elif condition.value == ThresholdValue.HIGH:
+                return labels['sma-mem'] != 'sma-mem-high'
+        elif condition.attribute == Metric.FREE_CPU:
+            if condition.value == ThresholdValue.MEDIUM:
+                return labels['sma-cpu'] == 'sma-cpu-low'
+            elif condition.value == ThresholdValue.HIGH:
+                return labels['sma-cpu'] != 'sma-cpu-high'
+        elif condition.attribute == Metric.TEMPERATURE:
+            if condition.value == ThresholdValue.HIGH:
+                return labels['sma-temp'] == 'sma-temp-high'
+            elif condition.value == ThresholdValue.MEDIUM:
+                return labels['sma-temp'] != 'sma-temp-low'
