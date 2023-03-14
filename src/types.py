@@ -34,6 +34,9 @@ class Condition:
 
 class Action(Enum):
     DELETE_PODS = 'delete_pods'
+    FREEZE_NODE = 'freeze_node'
+    SOFT_DELETE_MEM = 'soft_delete_mem'
+    SOFT_DELETE_CPU = 'soft_delete_cpu'
 
 
 @dataclass

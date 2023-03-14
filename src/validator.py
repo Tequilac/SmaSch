@@ -55,6 +55,7 @@ class Validator:
         config.load_kube_config()
 
         self._kube_api = client.CoreV1Api()
+        self._custom_api = client.CustomObjectsApi()
 
     def start_loop(self):
         logger.info('Starting')
@@ -139,6 +140,8 @@ class Validator:
                 results = [self.evaluate_condition(node, cond) for cond in rule.conditions]
                 if all(results):
                     self.perform_action(node, rule.action)
+                else:
+                    self.unfreeze_node(node)
 
     def perform_action(self, node, action: Action):
         if action == Action.DELETE_PODS:
@@ -146,6 +149,57 @@ class Validator:
             for pod in pods:
                 if pod.spec.node_name == node.metadata.name:
                     self._kube_api.delete_namespaced_pod(pod.metadata.name, namespace='default')
+
+        elif action == Action.FREEZE_NODE:
+            labels = node.metadata.labels
+            labels['sma-freeze'] = 'sma-freeze'
+            body = {
+                'metadata': {
+                    'labels': labels
+                }
+            }
+            self._kube_api.patch_node(name=node.metadata.name, body=body)
+
+        elif action == Action.SOFT_DELETE_MEM:
+            if self._prometheus_url:
+                prom = PrometheusConnect(url=self._prometheus_url, disable_ssl=True)
+                pods = self._kube_api.list_namespaced_pod(namespace='default').items
+                pod_usages = {}
+                for pod in pods:
+                    label_config = {'pod': pod.metadata.name}
+                    metric = prom.get_current_metric_value(
+                        metric_name='container_memory_usage_bytes',
+                        label_config=label_config,
+                    )
+                    pod_usages[pod.metadata.name] = metric[0].value
+                pod = max(pod_usages, key=pod_usages.get)
+                self._kube_api.delete_namespaced_pod(pod.metadata.name, namespace='default')
+
+        elif action == Action.SOFT_DELETE_CPU:
+            if self._prometheus_url:
+                prom = PrometheusConnect(url=self._prometheus_url, disable_ssl=True)
+                pods = self._kube_api.list_namespaced_pod(namespace='default').items
+                pod_usages = {}
+                for pod in pods:
+                    label_config = {'pod': pod.metadata.name}
+                    metric = prom.get_current_metric_value(
+                        metric_name='container_cpu_usage_seconds_total',
+                        label_config=label_config,
+                    )
+                    pod_usages[pod.metadata.name] = metric[0].value
+                pod = max(pod_usages, key=pod_usages.get)
+                self._kube_api.delete_namespaced_pod(pod.metadata.name, namespace='default')
+
+    def unfreeze_node(self, node):
+        labels = node.metadata.labels
+        if labels['sma-freeze']:
+            del labels['sma-freeze']
+            body = {
+                'metadata': {
+                    'labels': labels
+                }
+            }
+            self._kube_api.patch_node(name=node.metadata.name, body=body)
 
     def evaluate_condition(self, node, condition: Condition):
         labels = self._labels[node.metadata.name]
