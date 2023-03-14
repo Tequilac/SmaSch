@@ -68,7 +68,7 @@ class Validator:
     def get_file_changes(self) -> Config | None:
         modified_time = os.stat(self._file_path).st_mtime
         if modified_time != self._file_stamp:
-            logger.warn('Detected changes, reloading configuration')
+            logger.info('Detected changes, reloading configuration')
             self._file_stamp = modified_time
             conf = self.load_from_file()
             try:
@@ -108,17 +108,18 @@ class Validator:
                 labels['sma-cpu'] = 'sma-cpu-high'
 
             prometheus_url = os.getenv('PROM_URL')
-            prom = PrometheusConnect(url=prometheus_url, disable_ssl=True)
-            label_config = {'instance': node.metadata.name}
-            metric = prom.get_current_metric_value(metric_name='node_hwmon_temp_celsius', label_config=label_config)
-            temperature = metric[0].value
+            if prometheus_url:
+                prom = PrometheusConnect(url=prometheus_url, disable_ssl=True)
+                label_config = {'instance': node.metadata.name}
+                metric = prom.get_current_metric_value(metric_name='node_hwmon_temp_celsius', label_config=label_config)
+                temperature = metric[0].value
 
-            if temperature < self._thresholds.temperature.medium:
-                labels['sma-temp'] = 'sma-temp-low'
-            elif self._thresholds.temperature.medium <= temperature < self._thresholds.temperature.high:
-                labels['sma-temp'] = 'sma-temp-mid'
-            elif temperature >= self._thresholds.temperature.high:
-                labels['sma-temp'] = 'sma-temp-high'
+                if temperature < self._thresholds.temperature.medium:
+                    labels['sma-temp'] = 'sma-temp-low'
+                elif self._thresholds.temperature.medium <= temperature < self._thresholds.temperature.high:
+                    labels['sma-temp'] = 'sma-temp-mid'
+                elif temperature >= self._thresholds.temperature.high:
+                    labels['sma-temp'] = 'sma-temp-high'
 
             self._labels[node.metadata.name] = labels
 
