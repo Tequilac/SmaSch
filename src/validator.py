@@ -5,11 +5,12 @@ import yaml
 from kubernetes import config, client
 from prometheus_api_client import PrometheusConnect
 
-from logger import logger
+from .logger import logger
 from src.types import Config, MetricThresholds, Thresholds, Condition, Metric, ThresholdValue, Action, Rule
 
 
 def conf_to_obj(conf) -> Config:
+    print(conf)
     check_timeout = conf['check_timeout']
 
     free_memory = conf['thresholds']['free_memory']
@@ -31,11 +32,12 @@ def conf_to_obj(conf) -> Config:
         conditions_objects = []
         conditions = rule['conditions']
         for condition in conditions:
-            attribute = Metric[condition['attribute']]
-            value = ThresholdValue[condition['value']]
+            attribute = Metric(condition['attribute'])
+            value = ThresholdValue(condition['value'])
             conditions_objects.append(Condition(attribute=attribute, value=value))
-        action = Action[rule['action']]
+        action = Action(rule['action'])
         rule_objects.append(Rule(conditions=conditions_objects, action=action))
+
     return Config(check_timeout=check_timeout, thresholds=thresholds, rules=rule_objects)
 
 
@@ -43,11 +45,12 @@ class Validator:
     def __init__(self):
         self._config = None
         self._file_stamp = 0
-        self._file_path = '/res/config/conf.yaml'
+        self._file_path = './res/conf.yaml'
         self._check_timeout = 10
         self._thresholds: MetricThresholds | None = None
         self._rules: list[Rule] = []
         self._labels = {}
+        self._prometheus_url = os.getenv('PROM_URL')
 
         config.load_kube_config()
 
@@ -107,9 +110,8 @@ class Validator:
             elif free_cpu >= self._thresholds.free_cpu.high:
                 labels['sma-cpu'] = 'sma-cpu-high'
 
-            prometheus_url = os.getenv('PROM_URL')
-            if prometheus_url:
-                prom = PrometheusConnect(url=prometheus_url, disable_ssl=True)
+            if self._prometheus_url:
+                prom = PrometheusConnect(url=self._prometheus_url, disable_ssl=True)
                 label_config = {'instance': node.metadata.name}
                 metric = prom.get_current_metric_value(metric_name='node_hwmon_temp_celsius', label_config=label_config)
                 temperature = metric[0].value
@@ -157,7 +159,7 @@ class Validator:
                 return labels['sma-cpu'] == 'sma-cpu-low'
             elif condition.value == ThresholdValue.HIGH:
                 return labels['sma-cpu'] != 'sma-cpu-high'
-        elif condition.attribute == Metric.TEMPERATURE:
+        elif condition.attribute == Metric.TEMPERATURE and self._prometheus_url:
             if condition.value == ThresholdValue.HIGH:
                 return labels['sma-temp'] == 'sma-temp-high'
             elif condition.value == ThresholdValue.MEDIUM:
