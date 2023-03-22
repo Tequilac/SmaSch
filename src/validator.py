@@ -95,9 +95,9 @@ class Validator:
             capacity = node.status.capacity
 
             free_cpu = (int(capacity['cpu']) * 1000 - int(allocatable['cpu'].split('m')[0])) / int(
-                allocatable['cpu'].split('m')[0]) * 100
+                capacity['cpu']) * 1000 * 100
             free_memory = (int(capacity['memory'].split('Ki')[0]) - int(allocatable['memory'].split('Ki')[0])) / int(
-                allocatable['memory'].split('Ki')[0]) * 100
+                capacity['memory'].split('Ki')[0]) * 100
 
             if free_memory < self._thresholds.free_memory.medium:
                 labels['sma-mem'] = 'sma-mem-low'
