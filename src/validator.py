@@ -47,7 +47,7 @@ class Validator:
         self._file_stamp = 0
         self._file_path = './res/conf.yaml'
         self._check_timeout = 10
-        self._thresholds: MetricThresholds | None = None
+        self._thresholds = None
         self._rules: list[Rule] = []
         self._labels = {}
         self._prometheus_url = os.getenv('PROM_URL')
@@ -69,7 +69,7 @@ class Validator:
             self.evaluate_rules()
             time.sleep(self._check_timeout)
 
-    def get_file_changes(self) -> Config | None:
+    def get_file_changes(self):
         modified_time = os.stat(self._file_path).st_mtime
         if modified_time != self._file_stamp:
             logger.info('Detected changes, reloading configuration')
