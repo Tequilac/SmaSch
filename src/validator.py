@@ -194,7 +194,7 @@ class Validator:
 
     def unfreeze_node(self, node):
         labels = node.metadata.labels
-        if labels['sma-freeze']:
+        if labels.get('sma-freeze'):
             del labels['sma-freeze']
             body = {
                 'metadata': {
