@@ -94,6 +94,10 @@ class Validator:
             allocatable = node.status.allocatable
             capacity = node.status.capacity
 
+            print((capacity['cpu']) * 1000)
+            print(int(allocatable['cpu'].split('m')[0]))
+            print(int(capacity['cpu']) * 1000 * 100)
+
             free_cpu = (int(capacity['cpu']) * 1000 - int(allocatable['cpu'].split('m')[0])) / int(
                 capacity['cpu']) * 1000 * 100
             free_memory = (int(capacity['memory'].split('Ki')[0]) - int(allocatable['memory'].split('Ki')[0])) / int(
