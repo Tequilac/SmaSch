@@ -97,7 +97,7 @@ class Validator:
             print(node.status.allocatable)
             print(node.status.capacity)
 
-            print((capacity['cpu']) * 1000)
+            print(int(capacity['cpu']) * 1000)
             print(int(allocatable['cpu'].split('m')[0]))
             print(int(capacity['cpu']) * 1000 * 100)
 
