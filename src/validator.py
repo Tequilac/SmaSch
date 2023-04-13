@@ -94,17 +94,13 @@ class Validator:
         for node in nodes:
             stats = list(filter(lambda x: x['metadata']['name'] == node.metadata.name, nodes_stats['items']))[0]
             labels = node.metadata.labels
-            allocatable = node.status.allocatable
             capacity = node.status.capacity
 
-            print(int(capacity['memory'].split('Ki')[0]))
-            print(int(stats['usage']['memory'].split('Ki')[0]))
+            print(100 - int(stats['usage']['cpu'].split('n')[0]) / (int(capacity['cpu']) * 10000000))
+            print(100 - int(stats['usage']['memory'].split('Ki')[0]) / int(capacity['memory'].split('Ki')[0]) * 100)
 
-            print(int(stats['usage']['memory'].split('Ki')[0]) / int(capacity['memory'].split('Ki')[0]))
-
-            free_cpu = int(stats['usage']['cpu'].split('n')[0]) / (int(capacity['cpu']) * 10000000)
-            free_memory = (int(capacity['memory'].split('Ki')[0]) - int(allocatable['memory'].split('Ki')[0])) / int(
-                capacity['memory'].split('Ki')[0]) * 100
+            free_cpu = 100 - int(stats['usage']['cpu'].split('n')[0]) / (int(capacity['cpu']) * 10000000)
+            free_memory = 100 - int(stats['usage']['memory'].split('Ki')[0]) / int(capacity['memory'].split('Ki')[0]) * 100
 
             if free_memory < self._thresholds.free_memory.medium:
                 labels['sma-mem'] = 'sma-mem-low'
