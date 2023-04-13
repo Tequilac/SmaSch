@@ -92,11 +92,12 @@ class Validator:
         api = client.CustomObjectsApi()
         nodes_stats = api.list_cluster_custom_object("metrics.k8s.io", "v1beta1", "nodes")
         for node in nodes:
-            stats = list(filter(lambda x: x['metadata']['name'] == node.metadata.name, nodes_stats))[0]
+            stats = list(filter(lambda x: x['metadata']['name'] == node.metadata.name, nodes_stats))
             labels = node.metadata.labels
             allocatable = node.status.allocatable
             capacity = node.status.capacity
 
+            print(stats)
             print(capacity['cpu'])
             print(stats['usage']['cpu'])
 
