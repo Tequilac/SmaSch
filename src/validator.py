@@ -3,7 +3,7 @@ import time
 
 import yaml
 from kubernetes import config, client
-#from prometheus_api_client import PrometheusConnect
+# from prometheus_api_client import PrometheusConnect
 
 from .logger import logger
 from src.types import Config, MetricThresholds, Thresholds, Condition, Metric, ThresholdValue, Action, Rule
@@ -89,13 +89,16 @@ class Validator:
 
     def validate(self):
         nodes = self._kube_api.list_node(watch=False).items
+        api = client.CustomObjectsApi()
+        nodes_stats = api.list_cluster_custom_object("metrics.k8s.io", "v1beta1", "nodes")
         for node in nodes:
+            stats = list(filter(lambda x: x['metadata']['name'] == node.metadata.name, nodes_stats))[0]
             labels = node.metadata.labels
             allocatable = node.status.allocatable
             capacity = node.status.capacity
 
-            print(node.status.allocatable)
-            print(node.status.capacity)
+            print(capacity['cpu'])
+            print(stats['usage']['cpu'])
 
             print(int(capacity['cpu']) * 1000)
             print(int(allocatable['cpu'].split('m')[0]))
