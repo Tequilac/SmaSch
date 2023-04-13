@@ -3,7 +3,7 @@ import time
 
 import yaml
 from kubernetes import config, client
-from prometheus_api_client import PrometheusConnect
+#from prometheus_api_client import PrometheusConnect
 
 from .logger import logger
 from src.types import Config, MetricThresholds, Thresholds, Condition, Metric, ThresholdValue, Action, Rule
